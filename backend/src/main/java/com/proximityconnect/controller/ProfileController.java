@@ -27,6 +27,13 @@ public class ProfileController {
         return ResponseEntity.ok(ProfileResponse.from(self));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ProfileResponse> byId(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("No user with that id."));
+        return ResponseEntity.ok(ProfileResponse.from(user));
+    }
+
     /**
      * The frontend should call this whenever it gets a fresh device
      * location (on login, on app foreground, or periodically) so

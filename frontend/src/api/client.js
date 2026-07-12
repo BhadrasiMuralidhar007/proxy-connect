@@ -4,6 +4,8 @@ function getToken() {
   return localStorage.getItem('pc_token');
 }
 
+export { getToken };
+
 export function setToken(token) {
   localStorage.setItem('pc_token', token);
 }
@@ -60,8 +62,12 @@ export const api = {
   register: (payload) => request('/auth/register', { method: 'POST', body: payload }),
   login: (payload) => request('/auth/login', { method: 'POST', body: payload }),
   me: () => request('/profile/me', { auth: true }),
+  profileById: (id) => request(`/profile/${id}`, { auth: true }),
   updateLocation: (latitude, longitude) =>
     request('/profile/location', { method: 'PUT', body: { latitude, longitude }, auth: true }),
   nearby: (radiusKm) =>
     request(`/discovery/nearby${radiusKm ? `?radiusKm=${radiusKm}` : ''}`, { auth: true }),
+  chatHistory: (otherUserId) => request(`/chat/history/${otherUserId}`, { auth: true }),
 };
+
+export const WS_BASE = API_BASE.replace(/\/api$/, '') + '/ws';

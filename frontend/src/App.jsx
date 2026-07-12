@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Onboarding from './pages/Onboarding.jsx'
 import Login from './pages/Login.jsx'
 import Discovery from './pages/Discovery.jsx'
+import ProfileDetail from './pages/ProfileDetail.jsx'
+import Chat from './pages/Chat.jsx'
 import { isLoggedIn } from './api/client.js'
 
 function RequireAuth({ children }) {
@@ -16,6 +18,8 @@ export default function App() {
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/login" element={<Login />} />
         <Route path="/discover" element={<RequireAuth><Discovery /></RequireAuth>} />
+        <Route path="/profile/:id" element={<RequireAuth><ProfileDetail /></RequireAuth>} />
+        <Route path="/chat/:id" element={<RequireAuth><Chat /></RequireAuth>} />
       </Routes>
     </div>
   )

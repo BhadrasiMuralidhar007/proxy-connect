@@ -37,7 +37,7 @@ public class MatchingService {
             case STRAIGHT -> {
                 return userRepository.findNearbyStraightMatches(
                         self.getId(),
-                        oppositeGender(self.getGender()).name(),
+                        self.getGender().name(),
                         self.getLatitude(),
                         self.getLongitude(),
                         radiusKm
@@ -56,17 +56,6 @@ public class MatchingService {
             }
             default -> throw new IllegalStateException("Unknown identity type: " + self.getIdentityType());
         }
-    }
-
-    private Gender oppositeGender(Gender gender) {
-        return switch (gender) {
-            case MALE -> Gender.FEMALE;
-            case FEMALE -> Gender.MALE;
-            // Straight non-binary users default to seeing both binary genders.
-            // findNearbyStraightMatches uses "<> selfGender" so this branch
-            // isn't hit today, but is here for when that query is widened.
-            case NON_BINARY -> Gender.NON_BINARY;
-        };
     }
 
     /**
