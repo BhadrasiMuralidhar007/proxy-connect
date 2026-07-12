@@ -1,0 +1,227 @@
+:root {
+  /* Color: deep-space indigo base, a teal-to-magenta "signal spectrum" accent pair
+     used for the proximity/ping motif, amber reserved for primary actions only. */
+  --bg: #14101f;
+  --surface: #1e1830;
+  --surface-2: #29213f;
+  --border: #362c52;
+  --text: #f2effb;
+  --text-dim: #a79fc4;
+  --signal-teal: #3fe0c5;
+  --signal-magenta: #ff5ca8;
+  --amber: #ffb648;
+  --danger: #ff6b6b;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', -apple-system, sans-serif;
+
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+p { margin: 0; color: var(--text-dim); line-height: 1.5; }
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+}
+
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 32px 24px 48px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, var(--signal-teal), var(--signal-magenta));
+  color: #0e0a1a;
+  font-weight: 600;
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.btn-primary:hover { opacity: 0.92; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-dim);
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+.btn-secondary:hover { color: var(--text); border-color: var(--text-dim); }
+
+/* Choice cards used throughout onboarding */
+.choice-grid {
+  display: grid;
+  gap: 12px;
+}
+.choice-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  text-align: left;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.choice-card:hover { border-color: var(--signal-teal); }
+.choice-card.selected {
+  border-color: var(--signal-teal);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px var(--signal-teal) inset;
+}
+.choice-card .sub {
+  display: block;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+/* Step indicator: dashes filling in, not numbered circles - order matters
+   here because it's a literal sequence of onboarding steps */
+.step-indicator {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 28px;
+}
+.step-dash {
+  height: 3px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--border);
+}
+.step-dash.done {
+  background: linear-gradient(90deg, var(--signal-teal), var(--signal-magenta));
+}
+
+.eyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--signal-teal);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.field {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px 16px;
+  color: var(--text);
+  font-size: 15px;
+  font-family: var(--font-body);
+}
+.field:focus {
+  outline: none;
+  border-color: var(--signal-teal);
+}
+.field::placeholder { color: var(--text-dim); }
+
+.error-banner {
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid var(--danger);
+  color: #ffb3b3;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* Signature element: radar ping used on discovery loading + empty states */
+.ping-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ping-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--signal-teal);
+  z-index: 2;
+}
+.ping-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid var(--signal-teal);
+  opacity: 0;
+  animation: ping-out 2.4s ease-out infinite;
+}
+.ping-ring:nth-child(2) { animation-delay: 0.8s; border-color: var(--signal-magenta); }
+.ping-ring:nth-child(3) { animation-delay: 1.6s; }
+
+@keyframes ping-out {
+  0% { width: 14px; height: 14px; opacity: 0.8; }
+  100% { width: 120px; height: 120px; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ping-ring { animation: none; opacity: 0.15; width: 90px; height: 90px; }
+}
+
+/* Profile card */
+.profile-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.profile-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--signal-teal), var(--signal-magenta));
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: #0e0a1a;
+  font-size: 18px;
+}
+.profile-info { flex: 1; min-width: 0; }
+.profile-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.profile-tag { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
