@@ -3,38 +3,18 @@ package com.proximityconnect.dto;
 import com.proximityconnect.model.Gender;
 import com.proximityconnect.model.IdentityType;
 import com.proximityconnect.model.OrientationTag;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 
 public class RegisterRequest {
-
-    @Email
-    @NotNull
     private String email;
-
-    @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
-
-    @NotNull
     private String displayName;
-
-    @NotNull
     private IdentityType identityType;
-
-    // Required for STRAIGHT users, optional for LGBTQ users - enforced
-    // conditionally in AuthService rather than with @NotNull here, since
-    // the LGBTQ onboarding step doesn't collect this field at all.
     private Gender gender;
-
-    // Required only when identityType == LGBTQ; validated in AuthService.
     private OrientationTag orientationTag;
-
     private Double latitude;
     private Double longitude;
 
-    // --- getters and setters ---
-
+    // Getters and Setters
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 

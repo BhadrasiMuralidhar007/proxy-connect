@@ -4,52 +4,103 @@ import com.proximityconnect.dto.LocationUpdateRequest;
 import com.proximityconnect.dto.ProfileResponse;
 import com.proximityconnect.model.User;
 import com.proximityconnect.repository.UserRepository;
-import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/profile")
 public class ProfileController {
 
-    private final UserRepository userRepository;
-
-    public ProfileController(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+    @Autowired
+    private UserRepository userRepository;
 
     @GetMapping("/me")
-    public ResponseEntity<ProfileResponse> me(Authentication authentication) {
-        Long selfId = (Long) authentication.getPrincipal();
-        User self = userRepository.findById(selfId)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found."));
-        return ResponseEntity.ok(ProfileResponse.from(self));
+    public ResponseEntity<?> getMe() {
+        try {
+            Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            ProfileResponse resp = new ProfileResponse(
+                    user.getId(),
+                    user.getDisplayName(),
+                    user.getIdentityType(),
+                    user.getGender(),
+                    user.getOrientationTag()
+            );
+            resp.setPublicKey(user.getPublicKey());
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            Map<String, String> err = new HashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(err);
+        }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProfileResponse> byId(@PathVariable Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("No user with that id."));
-        return ResponseEntity.ok(ProfileResponse.from(user));
+    public ResponseEntity<?> getProfileById(@PathVariable Long id) {
+        try {
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            ProfileResponse resp = new ProfileResponse(
+                    user.getId(),
+                    user.getDisplayName(),
+                    user.getIdentityType(),
+                    user.getGender(),
+                    user.getOrientationTag()
+            );
+            resp.setPublicKey(user.getPublicKey());
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            Map<String, String> err = new HashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.status(404).body(err);
+        }
     }
 
-    /**
-     * The frontend should call this whenever it gets a fresh device
-     * location (on login, on app foreground, or periodically) so
-     * discovery results stay accurate as the person moves around.
-     */
+    @PutMapping("/public-key")
+    public ResponseEntity<?> updatePublicKey(@RequestBody Map<String, String> req) {
+        try {
+            Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            user.setPublicKey(req.get("publicKey"));
+            userRepository.save(user);
+
+            Map<String, String> resp = new HashMap<>();
+            resp.put("status", "public key updated");
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            Map<String, String> err = new HashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(err);
+        }
+    }
+
     @PutMapping("/location")
-    public ResponseEntity<ProfileResponse> updateLocation(Authentication authentication,
-                                                            @Valid @RequestBody LocationUpdateRequest req) {
-        Long selfId = (Long) authentication.getPrincipal();
-        User self = userRepository.findById(selfId)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found."));
+    public ResponseEntity<?> updateLocation(@RequestBody LocationUpdateRequest req) {
+        try {
+            Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        self.setLatitude(req.getLatitude());
-        self.setLongitude(req.getLongitude());
-        User saved = userRepository.save(self);
+            user.setLatitude(req.getLatitude());
+            user.setLongitude(req.getLongitude());
+            userRepository.save(user);
 
-        return ResponseEntity.ok(ProfileResponse.from(saved));
+            Map<String, String> resp = new HashMap<>();
+            resp.put("status", "location updated");
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            Map<String, String> err = new HashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(err);
+        }
     }
 }

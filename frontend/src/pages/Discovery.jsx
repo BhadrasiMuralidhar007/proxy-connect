@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Download } from 'lucide-react'
 import ProfileCard from '../components/ProfileCard.jsx'
 import { api, clearToken } from '../api/client.js'
 
@@ -45,6 +46,30 @@ export default function Discovery() {
     }
   }
 
+  const [isDownloading, setIsDownloading] = useState(false)
+
+  async function handleDownloadZip() {
+    setIsDownloading(true)
+    try {
+      const response = await fetch('/api/download-zip')
+      if (!response.ok) throw new Error('Download failed')
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'proximity-connect.zip'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error(err)
+      alert('Failed to generate and download the ZIP file. Please use the direct link or refresh.')
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
   function handleLogout() {
     clearToken()
     navigate('/login')
@@ -57,7 +82,33 @@ export default function Discovery() {
           <div className="eyebrow">Nearby</div>
           <h1 style={{ fontSize: 24 }}>People around you</h1>
         </div>
-        <button className="btn-secondary" onClick={handleLogout}>Log out</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={handleDownloadZip}
+            disabled={isDownloading}
+            className="btn-secondary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 12px',
+              fontSize: 13,
+              cursor: isDownloading ? 'not-allowed' : 'pointer',
+              opacity: isDownloading ? 0.7 : 1
+            }}
+            title="Download full project source code as ZIP"
+          >
+            <Download size={14} />
+            <span>{isDownloading ? 'Downloading...' : 'Download ZIP'}</span>
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={handleLogout}
+            style={{ padding: '8px 12px', fontSize: 13 }}
+          >
+            Log out
+          </button>
+        </div>
       </div>
 
       {loading && (

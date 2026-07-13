@@ -1,15 +1,10 @@
 package com.proximityconnect.dto;
 
-import jakarta.validation.constraints.NotNull;
-
 public class LocationUpdateRequest {
-
-    @NotNull
     private Double latitude;
-
-    @NotNull
     private Double longitude;
 
+    // Getters and Setters
     public Double getLatitude() { return latitude; }
     public void setLatitude(Double latitude) { this.latitude = latitude; }
 

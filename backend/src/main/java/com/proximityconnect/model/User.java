@@ -1,17 +1,16 @@
 package com.proximityconnect.model;
 
 import jakarta.persistence.*;
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "app_user")
+@Table(name = "users")
 public class User {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(unique = true, nullable = false)
     private String email;
 
     @Column(nullable = false)
@@ -24,28 +23,23 @@ public class User {
     @Column(nullable = false)
     private IdentityType identityType;
 
-    // Nullable: only STRAIGHT users are required to set this (enforced in
-    // AuthService), LGBTQ users are matched by orientationTag instead.
     @Enumerated(EnumType.STRING)
     private Gender gender;
 
-    // Only set when identityType == LGBTQ. Null for STRAIGHT users.
     @Enumerated(EnumType.STRING)
     private OrientationTag orientationTag;
 
     private Double latitude;
     private Double longitude;
 
-    @Column(nullable = false)
-    private Instant createdAt = Instant.now();
-
-    @Column(nullable = false)
     private boolean active = true;
 
-    public User() {}
+    @Column(length = 2048)
+    private String publicKey;
 
-    // --- getters and setters ---
+    private LocalDateTime createdAt = LocalDateTime.now();
 
+    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -73,9 +67,12 @@ public class User {
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public String getPublicKey() { return publicKey; }
+    public void setPublicKey(String publicKey) { this.publicKey = publicKey; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

@@ -1,0 +1,12 @@
+{
+  "name": "Nearby — find people around you",
+  "description": "Proximity Connect is a dating app that allows users to find compatible matches nearby and chat in real-time.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

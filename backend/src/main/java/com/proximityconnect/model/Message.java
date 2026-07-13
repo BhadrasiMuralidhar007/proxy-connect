@@ -1,12 +1,11 @@
 package com.proximityconnect.model;
 
 import jakarta.persistence.*;
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "chat_message")
+@Table(name = "messages")
 public class Message {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -17,20 +16,12 @@ public class Message {
     @Column(nullable = false)
     private Long recipientId;
 
-    @Column(nullable = false, length = 2000)
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
-    @Column(nullable = false)
-    private Instant sentAt = Instant.now();
+    private LocalDateTime sentAt = LocalDateTime.now();
 
-    public Message() {}
-
-    public Message(Long senderId, Long recipientId, String content) {
-        this.senderId = senderId;
-        this.recipientId = recipientId;
-        this.content = content;
-    }
-
+    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -43,6 +34,6 @@ public class Message {
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
 
-    public Instant getSentAt() { return sentAt; }
-    public void setSentAt(Instant sentAt) { this.sentAt = sentAt; }
+    public LocalDateTime getSentAt() { return sentAt; }
+    public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
 }

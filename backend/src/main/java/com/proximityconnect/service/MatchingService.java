@@ -1,91 +1,129 @@
 package com.proximityconnect.service;
 
+import com.proximityconnect.dto.ProfileResponse;
+import com.proximityconnect.model.User;
+import com.proximityconnect.model.IdentityType;
 import com.proximityconnect.model.Gender;
 import com.proximityconnect.model.OrientationTag;
-import com.proximityconnect.model.User;
 import com.proximityconnect.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class MatchingService {
 
-    private final UserRepository userRepository;
+    @Autowired
+    private UserRepository userRepository;
 
-    @Value("${app.discovery.default-radius-km:25}")
-    private double defaultRadiusKm;
+    public List<ProfileResponse> getDiscoveryFeed(Long currentUserId, Double radiusKm) {
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-    public MatchingService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+        double finalRadius = radiusKm != null ? radiusKm : 25.0;
+
+        List<User> allUsers = userRepository.findAll();
+
+        return allUsers.stream()
+                .filter(u -> !u.getId().equals(currentUserId))
+                .filter(User::isActive)
+                .filter(u -> {
+                    // Compatibility filtering
+                    if (currentUser.getIdentityType() == IdentityType.STRAIGHT) {
+                        return u.getIdentityType() == IdentityType.STRAIGHT && u.getGender() != currentUser.getGender();
+                    } else {
+                        if (u.getIdentityType() != IdentityType.LGBTQ) {
+                            return false;
+                        }
+                        Set<OrientationTag> compat = getCompatibleTags(currentUser.getOrientationTag());
+                        return compat.contains(u.getOrientationTag());
+                    }
+                })
+                .map(u -> {
+                    Double dist = null;
+                    if (currentUser.getLatitude() != null && currentUser.getLongitude() != null &&
+                            u.getLatitude() != null && u.getLongitude() != null) {
+                        dist = calculateDistance(
+                                currentUser.getLatitude(), currentUser.getLongitude(),
+                                u.getLatitude(), u.getLongitude()
+                        );
+                    }
+                    ProfileResponse resp = new ProfileResponse(
+                            u.getId(),
+                            u.getDisplayName(),
+                            u.getIdentityType(),
+                            u.getGender(),
+                            u.getOrientationTag(),
+                            dist
+                    );
+                    resp.setPublicKey(u.getPublicKey());
+                    return resp;
+                })
+                .filter(p -> {
+                    // If radius filter is active, only include profiles within the radius.
+                    // Profiles with no distance are excluded if we require a valid location.
+                    if (p.getDistanceKm() == null) {
+                        return false;
+                    }
+                    return p.getDistanceKm() <= finalRadius;
+                })
+                .sorted((p1, p2) -> {
+                    if (p1.getDistanceKm() == null) return 1;
+                    if (p2.getDistanceKm() == null) return -1;
+                    return p1.getDistanceKm().compareTo(p2.getDistanceKm());
+                })
+                .collect(Collectors.toList());
     }
 
-    /**
-     * Single entry point for "show me nearby people". Branches on the
-     * caller's identity type - this is the one place that encodes the
-     * matching rules, so if the rules change, they only change here.
-     */
-    public List<User> findNearby(User self, Double radiusKmOverride) {
-        double radiusKm = radiusKmOverride != null ? radiusKmOverride : defaultRadiusKm;
-        requireLocation(self);
-
-        switch (self.getIdentityType()) {
-            case STRAIGHT -> {
-                return userRepository.findNearbyStraightMatches(
-                        self.getId(),
-                        self.getGender().name(),
-                        self.getLatitude(),
-                        self.getLongitude(),
-                        radiusKm
-                );
-            }
-            case LGBTQ -> {
-                Set<OrientationTag> compatible = compatibleTags(self.getOrientationTag());
-                List<String> tagNames = compatible.stream().map(Enum::name).collect(Collectors.toList());
-                return userRepository.findNearbyLgbtqMatches(
-                        self.getId(),
-                        tagNames,
-                        self.getLatitude(),
-                        self.getLongitude(),
-                        radiusKm
-                );
-            }
-            default -> throw new IllegalStateException("Unknown identity type: " + self.getIdentityType());
-        }
-    }
-
-    /**
-     * Which orientation tags a given tag should see in discovery.
-     * This is the part you'll want to tune with real user feedback -
-     * treat it as a starting point, not gospel. Every tag sees itself
-     * plus a small set of adjacent tags that commonly overlap.
-     */
-    private Set<OrientationTag> compatibleTags(OrientationTag tag) {
+    private Set<OrientationTag> getCompatibleTags(OrientationTag tag) {
+        Set<OrientationTag> set = new HashSet<>();
         if (tag == null) {
-            // Fallback: if somehow unset, only match with others in the same boat
-            // rather than crash - keeps discovery safe-by-default.
-            return EnumSet.of(OrientationTag.OTHER);
+            set.add(OrientationTag.OTHER);
+            return set;
         }
-        return switch (tag) {
-            case GAY -> EnumSet.of(OrientationTag.GAY, OrientationTag.BISEXUAL, OrientationTag.QUEER, OrientationTag.PANSEXUAL);
-            case LESBIAN -> EnumSet.of(OrientationTag.LESBIAN, OrientationTag.BISEXUAL, OrientationTag.QUEER, OrientationTag.PANSEXUAL);
-            case BISEXUAL -> EnumSet.of(OrientationTag.GAY, OrientationTag.LESBIAN, OrientationTag.BISEXUAL, OrientationTag.PANSEXUAL, OrientationTag.QUEER);
-            case PANSEXUAL -> EnumSet.of(OrientationTag.GAY, OrientationTag.LESBIAN, OrientationTag.BISEXUAL, OrientationTag.PANSEXUAL, OrientationTag.QUEER, OrientationTag.TRANSGENDER, OrientationTag.NON_BINARY);
-            case TRANSGENDER -> EnumSet.of(OrientationTag.TRANSGENDER, OrientationTag.QUEER, OrientationTag.PANSEXUAL, OrientationTag.NON_BINARY);
-            case NON_BINARY -> EnumSet.of(OrientationTag.NON_BINARY, OrientationTag.QUEER, OrientationTag.PANSEXUAL, OrientationTag.TRANSGENDER);
-            case QUEER -> EnumSet.of(OrientationTag.QUEER, OrientationTag.GAY, OrientationTag.LESBIAN, OrientationTag.BISEXUAL, OrientationTag.PANSEXUAL, OrientationTag.NON_BINARY, OrientationTag.TRANSGENDER);
-            case ASEXUAL -> EnumSet.of(OrientationTag.ASEXUAL, OrientationTag.QUEER);
-            case OTHER -> EnumSet.of(OrientationTag.OTHER, OrientationTag.QUEER);
-        };
+        switch (tag) {
+            case GAY:
+                set.addAll(Arrays.asList(OrientationTag.GAY, OrientationTag.BISEXUAL, OrientationTag.QUEER, OrientationTag.PANSEXUAL));
+                break;
+            case LESBIAN:
+                set.addAll(Arrays.asList(OrientationTag.LESBIAN, OrientationTag.BISEXUAL, OrientationTag.QUEER, OrientationTag.PANSEXUAL));
+                break;
+            case BISEXUAL:
+                set.addAll(Arrays.asList(OrientationTag.GAY, OrientationTag.LESBIAN, OrientationTag.BISEXUAL, OrientationTag.PANSEXUAL, OrientationTag.QUEER));
+                break;
+            case PANSEXUAL:
+                set.addAll(Arrays.asList(OrientationTag.GAY, OrientationTag.LESBIAN, OrientationTag.BISEXUAL, OrientationTag.PANSEXUAL, OrientationTag.QUEER, OrientationTag.TRANSGENDER, OrientationTag.NON_BINARY));
+                break;
+            case TRANSGENDER:
+                set.addAll(Arrays.asList(OrientationTag.TRANSGENDER, OrientationTag.QUEER, OrientationTag.PANSEXUAL, OrientationTag.NON_BINARY));
+                break;
+            case NON_BINARY:
+                set.addAll(Arrays.asList(OrientationTag.NON_BINARY, OrientationTag.QUEER, OrientationTag.PANSEXUAL, OrientationTag.TRANSGENDER));
+                break;
+            case QUEER:
+                set.addAll(Arrays.asList(OrientationTag.QUEER, OrientationTag.GAY, OrientationTag.LESBIAN, OrientationTag.BISEXUAL, OrientationTag.PANSEXUAL, OrientationTag.NON_BINARY, OrientationTag.TRANSGENDER));
+                break;
+            case ASEXUAL:
+                set.addAll(Arrays.asList(OrientationTag.ASEXUAL, OrientationTag.QUEER));
+                break;
+            case OTHER:
+            default:
+                set.addAll(Arrays.asList(OrientationTag.OTHER, OrientationTag.QUEER));
+                break;
+        }
+        return set;
     }
 
-    private void requireLocation(User user) {
-        if (user.getLatitude() == null || user.getLongitude() == null) {
-            throw new IllegalStateException("User location is not set - request device location before showing discovery.");
-        }
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371; // Radius of Earth in KM
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 }

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api';
+const API_BASE = (import.meta.env.VITE_API_BASE || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000') + '/api').replace(/\/$/, '');
 
 function getToken() {
   return localStorage.getItem('pc_token');
@@ -65,6 +65,8 @@ export const api = {
   profileById: (id) => request(`/profile/${id}`, { auth: true }),
   updateLocation: (latitude, longitude) =>
     request('/profile/location', { method: 'PUT', body: { latitude, longitude }, auth: true }),
+  updatePublicKey: (publicKey) =>
+    request('/profile/public-key', { method: 'PUT', body: { publicKey }, auth: true }),
   nearby: (radiusKm) =>
     request(`/discovery/nearby${radiusKm ? `?radiusKm=${radiusKm}` : ''}`, { auth: true }),
   chatHistory: (otherUserId) => request(`/chat/history/${otherUserId}`, { auth: true }),

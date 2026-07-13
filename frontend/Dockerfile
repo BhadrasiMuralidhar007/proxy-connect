@@ -1,18 +1,31 @@
-# --- Build stage ---
-FROM node:20-alpine AS build
+FROM node:18-alpine AS build
 WORKDIR /app
-COPY package.json ./
+COPY package*.json ./
 RUN npm install
 COPY . .
-# VITE_API_BASE is baked in at build time - point it at your deployed backend URL
-ARG VITE_API_BASE=http://localhost:8080/api
-ENV VITE_API_BASE=$VITE_API_BASE
 RUN npm run build
 
-# --- Serve stage ---
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
-# React Router needs unknown paths to fall back to index.html
-RUN echo 'server { listen 80; location / { root /usr/share/nginx/html; try_files $uri /index.html; } }' \
-    > /etc/nginx/conf.d/default.conf
-EXPOSE 80
+EXPOSE 3000
+COPY <<EOF /etc/nginx/conf.d/default.conf
+server {
+    listen 3000;
+    location / {
+        root /usr/share/nginx/html;
+        index index.html index.htm;
+        try_files \$uri \$uri/ /index.html;
+    }
+    location /api/ {
+        proxy_pass http://backend:8080/api/;
+    }
+    location /ws {
+        proxy_pass http://backend:8080/ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host \$host;
+    }
+}
+EOF
+CMD ["nginx", "-g", "daemon off;"]
