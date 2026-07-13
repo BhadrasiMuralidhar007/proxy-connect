@@ -380,6 +380,7 @@ export default function Chat() {
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
   const recordingTimerRef = useRef(null)
+  const handleIncomingSignalRef = useRef(null)
 
   // 1. Initialize our E2EE Keypair and publish public key
   useEffect(() => {
@@ -402,7 +403,9 @@ export default function Chat() {
     const client = connectChat(
       (incoming) => {
         if (incoming.isSignal || incoming.content?.startsWith('SIGNAL:')) {
-          handleIncomingSignal(incoming)
+          if (handleIncomingSignalRef.current) {
+            handleIncomingSignalRef.current(incoming)
+          }
           return
         }
 
@@ -508,6 +511,12 @@ export default function Chat() {
     }
   };
 
+  const sendSignalToSelf = (payload) => {
+    if (clientRef.current && selfId) {
+      sendChatMessage(clientRef.current, Number(selfId), `SIGNAL:${JSON.stringify(payload)}`);
+    }
+  };
+
   const handleIncomingSignal = async (incoming) => {
     try {
       const raw = incoming.content.substring('SIGNAL:'.length);
@@ -532,6 +541,13 @@ export default function Chat() {
             if (pcRef.current) {
               await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
             }
+          }
+          break;
+
+        case 'call-answered-elsewhere':
+        case 'call-rejected-elsewhere':
+          if (callState === 'incoming') {
+            cleanupCall();
           }
           break;
 
@@ -570,6 +586,10 @@ export default function Chat() {
       console.error('Error handling signaling message:', err);
     }
   };
+
+  useEffect(() => {
+    handleIncomingSignalRef.current = handleIncomingSignal;
+  });
 
   const startCall = async (type) => {
     setCallType(type);
@@ -620,6 +640,7 @@ export default function Chat() {
   const acceptCall = async () => {
     stopRingtone();
     setCallState('connected');
+    sendSignalToSelf({ type: 'call-answered-elsewhere' });
 
     try {
       const stream = await acquireMediaStream(callType);
@@ -667,6 +688,7 @@ export default function Chat() {
 
   const rejectCall = () => {
     sendSignal({ type: 'call-rejected' });
+    sendSignalToSelf({ type: 'call-rejected-elsewhere' });
     cleanupCall();
   };
 

@@ -97,9 +97,10 @@ export default function Discovery() {
           <h1 style={{ fontSize: 24 }}>People around you</h1>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            onClick={handleDownloadZip}
-            disabled={isDownloading}
+          <a
+            href="/api/download-zip"
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn-secondary"
             style={{
               display: 'inline-flex',
@@ -107,14 +108,15 @@ export default function Discovery() {
               gap: 6,
               padding: '8px 12px',
               fontSize: 13,
-              cursor: isDownloading ? 'not-allowed' : 'pointer',
-              opacity: isDownloading ? 0.7 : 1
+              cursor: 'pointer',
+              textDecoration: 'none',
+              color: 'var(--text)'
             }}
             title="Download full project source code as ZIP"
           >
             <Download size={14} />
-            <span>{isDownloading ? 'Downloading...' : 'Download ZIP'}</span>
-          </button>
+            <span>Download ZIP</span>
+          </a>
           <button
             className="btn-secondary"
             onClick={handleLogout}
