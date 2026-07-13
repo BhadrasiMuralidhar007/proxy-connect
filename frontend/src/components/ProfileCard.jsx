@@ -15,6 +15,10 @@ export default function ProfileCard({ profile }) {
 
   const initial = profile.displayName?.charAt(0)?.toUpperCase() || '?'
 
+  const distanceStr = profile.distanceKm !== undefined
+    ? `${profile.distanceKm} km away`
+    : 'global'
+
   return (
     <div
       className="profile-card"
@@ -24,7 +28,7 @@ export default function ProfileCard({ profile }) {
       <div className="profile-avatar">{initial}</div>
       <div className="profile-info">
         <div className="profile-name">{profile.displayName}</div>
-        <div className="profile-tag">{subtitle} · nearby</div>
+        <div className="profile-tag">{subtitle} · {distanceStr}</div>
       </div>
     </div>
   )

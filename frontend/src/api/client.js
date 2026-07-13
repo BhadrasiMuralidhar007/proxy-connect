@@ -67,8 +67,13 @@ export const api = {
     request('/profile/location', { method: 'PUT', body: { latitude, longitude }, auth: true }),
   updatePublicKey: (publicKey) =>
     request('/profile/public-key', { method: 'PUT', body: { publicKey }, auth: true }),
-  nearby: (radiusKm) =>
-    request(`/discovery/nearby${radiusKm ? `?radiusKm=${radiusKm}` : ''}`, { auth: true }),
+  nearby: (radiusKm, all) => {
+    const params = [];
+    if (radiusKm) params.push(`radiusKm=${radiusKm}`);
+    if (all) params.push(`all=true`);
+    const query = params.length ? `?${params.join('&')}` : '';
+    return request(`/discovery/nearby${query}`, { auth: true });
+  },
   chatHistory: (otherUserId) => request(`/chat/history/${otherUserId}`, { auth: true }),
 };
 
