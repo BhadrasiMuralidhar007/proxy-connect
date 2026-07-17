@@ -1,25 +1,58 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import Onboarding from './pages/Onboarding.jsx'
-import Login from './pages/Login.jsx'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Discovery from './pages/Discovery.jsx'
-import ProfileDetail from './pages/ProfileDetail.jsx'
 import Chat from './pages/Chat.jsx'
+import Auth from './pages/Auth.jsx'
 import { isLoggedIn } from './api/client.js'
 
-function RequireAuth({ children }) {
-  return isLoggedIn() ? children : <Navigate to="/login" replace />
+function ProtectedRoute({ children }) {
+  const location = useLocation()
+  if (!isLoggedIn()) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+  return children
 }
 
 export default function App() {
   return (
-    <div className="app-shell">
+    <div style={{ minHeight: '100vh', background: 'var(--background)', color: 'var(--text)' }}>
       <Routes>
-        <Route path="/" element={<Navigate to={isLoggedIn() ? '/discover' : '/onboarding'} replace />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/discover" element={<RequireAuth><Discovery /></RequireAuth>} />
-        <Route path="/profile/:id" element={<RequireAuth><ProfileDetail /></RequireAuth>} />
-        <Route path="/chat/:id" element={<RequireAuth><Chat /></RequireAuth>} />
+        <Route path="/login" element={<Auth />} />
+        
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px' }}>
+                <Discovery />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profile/:id"
+          element={
+            <ProtectedRoute>
+              <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px' }}>
+                <Chat />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/chat/:id"
+          element={
+            <ProtectedRoute>
+              <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px' }}>
+                <Chat />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   )

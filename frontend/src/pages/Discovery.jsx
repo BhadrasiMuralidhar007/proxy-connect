@@ -10,12 +10,13 @@ export default function Discovery() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showAll, setShowAll] = useState(false)
+  const [radiusKm, setRadiusKm] = useState(100)
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     refreshLocationThenLoad()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAll])
+  }, [showAll, radiusKm])
 
   function refreshLocationThenLoad() {
     setLoading(true)
@@ -39,7 +40,7 @@ export default function Discovery() {
 
   async function loadNearby() {
     try {
-      const results = await api.nearby(undefined, showAll)
+      const results = await api.nearby(radiusKm, showAll)
       setProfiles(results)
     } catch (err) {
       setError(err.message)
@@ -175,6 +176,49 @@ export default function Discovery() {
             🌐 Global Discovery
           </button>
         </div>
+
+        {!showAll && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            background: 'var(--surface)',
+            border: '1.5px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            padding: '12px 16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 500 }}>
+                📍 Discovery Radius:
+              </span>
+              <span style={{ fontSize: 13, color: 'var(--signal-teal)', fontWeight: 600 }}>
+                {radiusKm === 999999 ? 'Everywhere (Unlimited Distance)' : `${radiusKm} km`}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+              {[10, 25, 50, 100, 500, 2000, 999999].map((km) => (
+                <button
+                  key={km}
+                  type="button"
+                  onClick={() => setRadiusKm(km)}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    borderRadius: 20,
+                    cursor: 'pointer',
+                    background: radiusKm === km ? 'rgba(43, 176, 154, 0.2)' : 'var(--surface-2)',
+                    color: radiusKm === km ? 'var(--signal-teal)' : 'var(--text-dim)',
+                    border: radiusKm === km ? '1.5px solid var(--signal-teal)' : '1.5px solid var(--border)',
+                    fontWeight: radiusKm === km ? 600 : 400,
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {km === 999999 ? 'Everywhere' : `${km} km`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ position: 'relative' }}>
           <input

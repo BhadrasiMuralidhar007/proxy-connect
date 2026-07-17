@@ -305,10 +305,10 @@ function createSimulatedStream(type) {
   return stream;
 }
 
-async function acquireMediaStream(type) {
+async function acquireMediaStream(type, mode = 'user') {
   const constraints = {
     audio: true,
-    video: type === 'video' ? { width: 640, height: 480, facingMode: 'user' } : false
+    video: type === 'video' ? { width: 640, height: 480, facingMode: mode } : false
   };
 
   try {
@@ -361,6 +361,7 @@ export default function Chat() {
   const [callDuration, setCallDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoPaused, setIsVideoPaused] = useState(false)
+  const [facingMode, setFacingMode] = useState('user') // 'user' (front) | 'environment' (back)
 
   // Voice recording states
   const [isRecordingAudio, setIsRecordingAudio] = useState(false)
@@ -376,6 +377,7 @@ export default function Chat() {
   const localStreamRef = useRef(null)
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
+  const remoteAudioRef = useRef(null)
 
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -595,9 +597,10 @@ export default function Chat() {
     setCallType(type);
     setCallState('outgoing');
     startRingtone('outgoing');
+    setFacingMode('user');
 
     try {
-      const stream = await acquireMediaStream(type);
+      const stream = await acquireMediaStream(type, 'user');
 
       localStreamRef.current = stream;
       
@@ -615,8 +618,16 @@ export default function Chat() {
       });
 
       pc.ontrack = (event) => {
-        if (remoteVideoRef.current && event.streams && event.streams[0]) {
-          remoteVideoRef.current.srcObject = event.streams[0];
+        if (event.streams && event.streams[0]) {
+          if (type === 'video') {
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = event.streams[0];
+            }
+          } else {
+            if (remoteAudioRef.current) {
+              remoteAudioRef.current.srcObject = event.streams[0];
+            }
+          }
         }
       };
 
@@ -641,9 +652,10 @@ export default function Chat() {
     stopRingtone();
     setCallState('connected');
     sendSignalToSelf({ type: 'call-answered-elsewhere' });
+    setFacingMode('user');
 
     try {
-      const stream = await acquireMediaStream(callType);
+      const stream = await acquireMediaStream(callType, 'user');
 
       localStreamRef.current = stream;
 
@@ -661,8 +673,16 @@ export default function Chat() {
       });
 
       pc.ontrack = (event) => {
-        if (remoteVideoRef.current && event.streams && event.streams[0]) {
-          remoteVideoRef.current.srcObject = event.streams[0];
+        if (event.streams && event.streams[0]) {
+          if (callType === 'video') {
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = event.streams[0];
+            }
+          } else {
+            if (remoteAudioRef.current) {
+              remoteAudioRef.current.srcObject = event.streams[0];
+            }
+          }
         }
       };
 
@@ -719,6 +739,10 @@ export default function Chat() {
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = null;
     }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+    }
+    setFacingMode('user');
   };
 
   const toggleMute = () => {
@@ -738,6 +762,52 @@ export default function Chat() {
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoPaused(!videoTrack.enabled);
       }
+    }
+  };
+
+  const flipCamera = async () => {
+    if (callType !== 'video' || !localStreamRef.current) return;
+
+    try {
+      const nextMode = facingMode === 'user' ? 'environment' : 'user';
+      
+      // 1. Get new stream with new facingMode
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { width: 640, height: 480, facingMode: nextMode }
+      });
+
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      if (!newVideoTrack) return;
+
+      // 2. Stop old video track
+      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (oldVideoTrack) {
+        oldVideoTrack.stop();
+        localStreamRef.current.removeTrack(oldVideoTrack);
+      }
+
+      // 3. Add new track to local stream
+      localStreamRef.current.addTrack(newVideoTrack);
+
+      // 4. Update local video preview
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+      }
+
+      // 5. Replace track in RTCPeerConnection if active
+      if (pcRef.current) {
+        const senders = pcRef.current.getSenders();
+        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+        if (videoSender) {
+          await videoSender.replaceTrack(newVideoTrack);
+        }
+      }
+
+      setFacingMode(nextMode);
+    } catch (err) {
+      console.error('Failed to flip camera:', err);
+      setError('Could not access back camera or switch camera.');
     }
   };
 
@@ -1887,6 +1957,11 @@ export default function Chat() {
             {/* CONNECTED CALL STATE DISPLAY */}
             {callState === 'connected' && (
               <>
+                <audio
+                  ref={remoteAudioRef}
+                  autoPlay
+                  style={{ display: 'none' }}
+                />
                 {callType === 'video' ? (
                   <>
                     {/* Remote Fullscreen Video */}
@@ -2061,27 +2136,49 @@ export default function Chat() {
                   <PhoneOff size={24} />
                 </button>
 
-                {/* Video Pause toggle (only for video calls) */}
+                {/* Video Pause and Camera Flip toggle (only for video calls) */}
                 {callType === 'video' && (
-                  <button
-                    type="button"
-                    onClick={toggleVideoPause}
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: '50%',
-                      background: isVideoPaused ? 'var(--signal-magenta)' : 'var(--surface-2)',
-                      color: isVideoPaused ? '#0e0a1a' : 'var(--text)',
-                      border: '1.5px solid var(--border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer'
-                    }}
-                    title={isVideoPaused ? "Turn Video On" : "Pause Video"}
-                  >
-                    {isVideoPaused ? <VideoOff size={20} /> : <Video size={20} />}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={toggleVideoPause}
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: '50%',
+                        background: isVideoPaused ? 'var(--signal-magenta)' : 'var(--surface-2)',
+                        color: isVideoPaused ? '#0e0a1a' : 'var(--text)',
+                        border: '1.5px solid var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                      title={isVideoPaused ? "Turn Video On" : "Pause Video"}
+                    >
+                      {isVideoPaused ? <VideoOff size={20} /> : <Video size={20} />}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={flipCamera}
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: '50%',
+                        background: facingMode === 'environment' ? 'var(--signal-teal)' : 'var(--surface-2)',
+                        color: facingMode === 'environment' ? '#0e0a1a' : 'var(--text)',
+                        border: '1.5px solid var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                      title="Flip Camera (Front/Back)"
+                    >
+                      <Camera size={20} />
+                    </button>
+                  </>
                 )}
               </>
             )}
